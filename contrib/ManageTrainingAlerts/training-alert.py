@@ -19,6 +19,9 @@ import sys
 
 auth = "<AUTHKEY>"
 host = "http://127.0.0.1:9000"
+thehive_username = "<USERNAME>"
+thehive_password = "<PASSWORD>"
+auth_type = "api"
 
 
 def create_alert():
@@ -29,12 +32,16 @@ def create_alert():
     title_ip = '{}.{}.{}.{}'.format(random.randrange(1, 223), random.randrange(1, 223), random.randrange(1, 223), random.randrange(1, 223))
     tags = ['MISP', 'Sigma', 'Perimeter', 'BIA:1', 'High-confidence']
 
-    headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer {}'.format(auth), 'Accept': 'text/plain'}
     url = "{}/api/alert".format(host)
 
     data = {'title': '{} - {}'.format(random.choice(title), title_ip), 'description': 'Alert Description', 'type': random.choice(alert_type), 'source': random.choice(sources), 'sourceRef': '{} - {} - {}'.format(random.randrange(maxrand), random.randrange(maxrand), random.randrange(maxrand)), 'tags': [random.choice(tags), random.choice(tags)], 'artifacts': [{'dataType': 'ip', 'data': title_ip, 'message': 'Victim'}]}
 
-    result = requests.post(url, headers=headers, data=json.dumps(data))
+    if auth_type == "basic":
+        headers = {'Content-Type': 'application/json', 'Accept': 'text/plain'}
+        result = requests.post(url, headers=headers, data=json.dumps(data), auth=(thehive_username, thehive_password))
+    else:
+        headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer {}'.format(auth), 'Accept': 'text/plain'}
+        result = requests.post(url, headers=headers, data=json.dumps(data))
     if result.json()['status'] == 'New':
         print('Alert {} added'.format(result.json()['_id']))
     else:
@@ -45,8 +52,11 @@ def create_alert():
 def delete_alert(_id=False, tag=False):
     if _id:
         url = "{}/api/alert/{}?force=1".format(host, _id)
-        headers = {'Authorization': 'Bearer {}'.format(auth)}
-        result = requests.delete(url, headers=headers)
+        if auth_type == "basic":
+            result = requests.delete(url, auth=(thehive_username, thehive_password))
+        else:
+            headers = {'Authorization': 'Bearer {}'.format(auth)}
+            result = requests.delete(url, headers=headers)
         if result.status_code == 204:
             print('Alert {} deleted'.format(_id))
         else:
@@ -54,9 +64,13 @@ def delete_alert(_id=False, tag=False):
 
     if tag:
         url = "{}/api/alert/_search?range=all".format(host)
-        headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer {}'.format(auth), 'Accept': 'text/plain'}
         data = {'query': {'tags': tag}}
-        result = requests.post(url, headers=headers, data=json.dumps(data))
+        if auth_type == "basic":
+            headers = {'Content-Type': 'application/json', 'Accept': 'text/plain'}
+            result = requests.post(url, headers=headers, data=json.dumps(data), auth=(thehive_username, thehive_password))
+        else:
+            headers = {'Content-Type': 'application/json', 'Authorization': 'Bearer {}'.format(auth), 'Accept': 'text/plain'}
+            result = requests.post(url, headers=headers, data=json.dumps(data))
         if result.status_code == 200:
             if result.json():
                 for alert in result.json():
